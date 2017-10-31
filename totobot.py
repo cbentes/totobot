@@ -1,3 +1,4 @@
+import os
 
 from flask import Flask
 from flask import request
@@ -6,19 +7,24 @@ from flask import abort
 import totobot
 from totobot.bot_manager import BotFramework
 from totobot.luis_manager import LUIS
-import os
+from totobot.config_manager import ConfigurationManager
+from totobot.data_manager import DataManager
 
+MONGODB_USER = os.environ["MONGODB_USER"]
+MONGODB_PWD = os.environ["MONGODB_PWD"]
+MONGODB_HOST = os.getenv("MONGODB_HOST", '127.0.0.1')
+MONGODB_PORT = os.getenv("MONGODB_HOST", '27017')
 
-MICROSOFT_APP_ID = os.environ['MICROSOFT_APP_ID']
-MICROSOFT_APP_PASSWORD = os.environ['MICROSOFT_APP_PASSWORD']
-LUIS_APP_ID = os.environ['LUIS_APP_ID']
-LUIS_SUB_KEY = os.environ['LUIS_SUB_KEY']
-TOTOBOT_KEY = os.environ['TOTOBOT_KEY']
+TOTOBOT_DEBUG = os.getenv("TOTOBOT_DEBUG", False)
+TOTOBOT_PORT = os.getenv("TOTOBOT_PORT", 5000)
+TOTOBOT_HOST = os.getenv("TOTOBOT_HOST", "127.0.0.1")
 
-bf = BotFramework(MICROSOFT_APP_ID, MICROSOFT_APP_PASSWORD)
+data_manager = DataManager(MONGODB_USER, MONGODB_PWD)
+cm = ConfigurationManager()
+bf = BotFramework(cm.MICROSOFT_APP_ID, cm.MICROSOFT_APP_PASSWORD)
+luis = LUIS(cm.LUIS_APP_CHAIN, cm.LUIS_SUB_KEY)
+
 app = Flask(__name__)
-
-luis = LUIS(LUIS_APP_ID, LUIS_SUB_KEY)
 
 
 @app.route("/")
@@ -29,7 +35,7 @@ def hello():
 @app.route("/<k>/api/messages", methods=['POST'])
 def api_messaages(k):
 
-    if k != TOTOBOT_KEY:
+    if k != cm.TOTOBOT_KEY:
         abort(403)
 
     bc_token = request.headers.get('Authorization', 'No')
@@ -37,6 +43,7 @@ def api_messaages(k):
         abort(403)
 
     data = request.json
+    data_manager.log_data(data, 'request_json')
 
     for k in data:
         print('{0} = {1}'.format(k, data[k]))
@@ -55,12 +62,16 @@ def api_messaages(k):
         }
 
         # Test: get the intent and send it back to the user
-        luis_resp = luis.query(text)
-        intent = luis_resp['topScoringIntent']['intent']
-        reply_msg = "Intent: {0}".format(intent)
+        luis_resp_list = luis.query(text)
+        data_manager.log_data(luis_resp_list, 'luis_response')
+        intents = []
+        for luis_resp in luis_resp_list:
+            intents += [x['intent'] for x in luis_resp['intents']]
+        reply_msg = "<br/>".join(intents)
         bf.send(reply_context, reply_msg)
+        data_manager.log_data({'reply_context': reply_context, 'reply_msg': reply_msg}, 'totobot_reply')
 
     return ''
 
 if __name__ == "__main__":
-    app.run(debug=False)
+    app.run(debug=TOTOBOT_DEBUG, host=TOTOBOT_HOST, port=TOTOBOT_PORT)
