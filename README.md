@@ -1,15 +1,22 @@
 # Totobot
 
+Totobot is AI bot to help you Machine Learning projects.
 
-```
-conda create --name bot python=3
-source activate bot
+### Version: Alpha
 
-conda install requests
-conda install flask
-conda install pymongo
-conda install cryptography
-pip install pyjwt
+The project is in its initial phase, and updates will be very frequent until the project closes the version 1.0.
 
-python totobot.py
-```
+### Functions:
+
+* Generate notification from model training pipelines
+* Generate statistics from data pipelines
+* Start, Stop model training
+* Search hyperparameters
+* Compatible with Slack, Skype, e-mail
+* Compatible with scikit-learn
+* Compatible with Keras
+* Extensible via plugin interface
+
+### Documentation
+
+The documentation can be accessed at [documentation/index](documentation/index.md)
